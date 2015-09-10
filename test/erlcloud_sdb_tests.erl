@@ -3,10 +3,13 @@
 -ifdef(TEST).
 -compile(export_all).
 
+-include("erlcloud_aws.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
 setup() ->
     erlcloud_sdb:configure("fake", "fake-secret"),
+    Config = get(aws_config),
+    put(aws_config, Config#aws_config{ custom_retry_settings = [{sdb, fun erlcloud_retry:no_retry/1, undefined}] }),
     meck:new(erlcloud_httpc).
 
 cleanup(_) ->

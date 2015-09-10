@@ -30,8 +30,8 @@
          get_object_url/2, get_object_url/3
         ]).
 
--include_lib("erlcloud/include/erlcloud.hrl").
--include_lib("erlcloud/include/erlcloud_aws.hrl").
+-include("erlcloud.hrl").
+-include("erlcloud_aws.hrl").
 -include_lib("xmerl/include/xmerl.hrl").
 
 
@@ -650,7 +650,7 @@ make_link(Expire_time, BucketName, Key) ->
 make_link(Expire_time, BucketName, Key, Config) ->
     EncodedKey = erlcloud_http:url_encode_loose(Key),
     {Sig, Expires} = sign_get(Expire_time, BucketName, EncodedKey, Config),
-    Host = lists:flatten([Config#aws_config.s3_scheme, BucketName, ".", Config#aws_config.s3_host, port_spec(Config)]),
+    Host = lists:flatten([Config#aws_config.s3_scheme, BucketName, ".", Config#aws_config.s3_host, erlcloud_util:port_to_str(Config#aws_config.s3_port)]),
     URI = lists:flatten(["/", EncodedKey, "?AWSAccessKeyId=", erlcloud_http:url_encode(Config#aws_config.access_key_id), "&Signature=", erlcloud_http:url_encode(Sig), "&Expires=", Expires]),
     {list_to_integer(Expires),
      binary_to_list(erlang:iolist_to_binary(Host)),
@@ -664,7 +664,7 @@ make_link(Expire_time, BucketName, Key, Config) ->
 -spec get_object_url(string(), string(), aws_config()) -> string().
 
  get_object_url(BucketName, Key, Config) ->
-  lists:flatten([Config#aws_config.s3_scheme, BucketName, ".", Config#aws_config.s3_host, port_spec(Config), "/", Key]).
+  lists:flatten([Config#aws_config.s3_scheme, BucketName, ".", Config#aws_config.s3_host, erlcloud_util:port_to_str(Config#aws_config.s3_port), "/", Key]).
 
 -spec make_get_url(integer(), string(), string()) -> iolist().
 
@@ -675,7 +675,7 @@ make_get_url(Expire_time, BucketName, Key) ->
 
 make_get_url(Expire_time, BucketName, Key, Config) ->
     {Sig, Expires} = sign_get(Expire_time, BucketName, erlcloud_http:url_encode_loose(Key), Config),
-    [Config#aws_config.s3_scheme, BucketName, ".", Config#aws_config.s3_host, port_spec(Config), "/", Key,
+    [Config#aws_config.s3_scheme, BucketName, ".", Config#aws_config.s3_host, erlcloud_util:port_to_str(Config#aws_config.s3_port), "/", Key,
      "?AWSAccessKeyId=", erlcloud_http:url_encode(Config#aws_config.access_key_id),
      "&Signature=", erlcloud_http:url_encode(Sig),
      "&Expires=", Expires].
@@ -955,7 +955,8 @@ s3_request2_no_update(Config, Method, Host, Path, Subresource, Params, Body, Hea
     EscapedPath = erlcloud_http:url_encode_loose(Path),
     Authorization = make_authorization(Config, Method, ContentMD5, ContentType,
                                        Date, AmzHeaders, Host, EscapedPath, Subresource, Params),
-    RequestHeaders = [{"date", Date}, {"authorization", Authorization}|FHeaders] ++
+    RequestHeaders = [{<<"date">>, iolist_to_binary(Date)},
+                      {<<"Authorization">>, iolist_to_binary(Authorization)}|FHeaders] ++
         case ContentMD5 of
             "" -> [];
             _ -> [{"content-md5", binary_to_list(ContentMD5)}]
@@ -963,7 +964,7 @@ s3_request2_no_update(Config, Method, Host, Path, Subresource, Params, Body, Hea
     RequestURI = lists:flatten([
                                 Config#aws_config.s3_scheme,
                                 case Host of "" -> ""; _ -> [Host, $.] end,
-                                Config#aws_config.s3_host, port_spec(Config),
+                                Config#aws_config.s3_host, erlcloud_util:port_to_str(Config#aws_config.s3_port),
                                 EscapedPath,
                                 case Subresource of "" -> ""; _ -> [$?, Subresource] end,
                                 if
@@ -973,7 +974,7 @@ s3_request2_no_update(Config, Method, Host, Path, Subresource, Params, Body, Hea
                                 end
                                ]),
 
-    Request = #aws_request{service = s3, uri = RequestURI, method = Method},
+    Request = #aws_request{uri = RequestURI, method = Method},
     Request2 = case Method of
                    M when M =:= get orelse M =:= head orelse M =:= delete ->
                        Request#aws_request{
@@ -990,18 +991,8 @@ s3_request2_no_update(Config, Method, Host, Path, Subresource, Params, Body, Hea
                          request_headers = Headers2,
                          request_body = Body}
                end,
-    Request3 = erlcloud_retry:request(Config, Request2, fun s3_result_fun/1),
+    Request3 = erlcloud_retry:request(erlcloud_retry:custom_retry(s3, Config), Request2),
     erlcloud_aws:request_to_return(Request3).
-
-s3_result_fun(#aws_request{response_type = ok} = Request) ->
-    Request;
-s3_result_fun(#aws_request{response_type = error, 
-                           error_type = aws, 
-                           response_status = Status} = Request) when
-      Status >= 500 ->
-    Request#aws_request{should_retry = true};
-s3_result_fun(#aws_request{response_type = error, error_type = aws} = Request) ->
-    Request#aws_request{should_retry = false}.
 
 make_authorization(Config, Method, ContentMD5, ContentType, Date, AmzHeaders,
                    Host, Resource, Subresource, Params) ->
@@ -1032,7 +1023,3 @@ make_authorization(Config, Method, ContentMD5, ContentType, Date, AmzHeaders,
 
 default_config() -> erlcloud_aws:default_config().
 
-port_spec(#aws_config{s3_port=80}) ->
-    "";
-port_spec(#aws_config{s3_port=Port}) ->
-    [":", erlang:integer_to_list(Port)].

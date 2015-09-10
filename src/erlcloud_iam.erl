@@ -343,7 +343,7 @@ iam_query(Config, Action, Params) ->
 iam_query(Config, Action, Params, ApiVersion) ->
     QParams = [{"Action", Action}, {"Version", ApiVersion}|Params],
     erlcloud_aws:aws_request_xml2(post, Config#aws_config.iam_host,
-                                  "/", QParams, Config).
+                                  "/", QParams, erlcloud_retry:custom_retry(iam, Config)).
 
 default_config() -> erlcloud_aws:default_config().
 

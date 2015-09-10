@@ -136,7 +136,7 @@ describe_load_balancers(Names, Config) ->
 elb_request(Config, Action, Params) ->
     QParams = [{"Action", Action}, {"Version", ?API_VERSION} | Params],
     erlcloud_aws:aws_request_xml(get, Config#aws_config.elb_host,
-                                 "/", QParams, Config).
+                                 "/", QParams, erlcloud_retry:custom_retry(elb, Config)).
 
 elb_simple_request(Config, Action, Params) ->
     _Doc = elb_request(Config, Action, Params),

@@ -260,7 +260,7 @@ mon_query(Config, Action, Params, ApiVersion) ->
                                  Config#aws_config.mon_port,
                                  "/",
                                  QParams,
-                                 Config).
+                                 erlcloud_retry:custom_retry(mon, Config)).
 
 configure_host(Host, Port, Protocol) ->
     Config = default_config(),

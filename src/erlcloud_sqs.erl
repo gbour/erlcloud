@@ -16,9 +16,9 @@
          receive_message/5, receive_message/6,
          remove_permission/2, remove_permission/3,
          send_message/2, send_message/3, send_message/4,
+         send_async_message/2, send_async_message/3, send_async_message/4,
          set_queue_attributes/2, set_queue_attributes/3
         ]).
-
 -include_lib("erlcloud/include/erlcloud.hrl").
 -include_lib("erlcloud/include/erlcloud_aws.hrl").
 
@@ -354,6 +354,30 @@ send_message(QueueName, MessageBody, DelaySeconds, Config)
       Doc
      ).
 
+-spec send_async_message/2 :: (string(), string()) -> ok.
+send_async_message(QueueName, MessageBody) ->
+    send_async_message(QueueName, MessageBody, default_config()).
+
+-spec send_async_message/3 :: (string(), string(), 0..900 | none |
+                               aws_config()) -> ok.
+send_async_message(QueueName, MessageBody, Config)
+  when is_record(Config, aws_config) ->
+    send_async_message(QueueName, MessageBody, none, Config);
+send_async_message(QueueName, MessageBody, DelaySeconds) ->
+    send_async_message(QueueName, MessageBody, DelaySeconds, default_config()).
+
+-spec send_async_message/4 :: (string(), string(), 0..900, aws_config()) -> ok.
+send_async_message(QueueName, MessageBody, DelaySeconds, Config)
+  when is_list(QueueName), is_list(MessageBody),
+       (DelaySeconds >= 0 andalso DelaySeconds =< 900) orelse
+       DelaySeconds =:= none ->
+    erlcloud_aws:do_async(
+      fun() ->
+              sqs_request(Config, QueueName,  "SendMessage",
+                              [{"MessageBody", MessageBody},
+                               {"DelaySeconds", DelaySeconds}])
+      end).
+
 -spec set_queue_attributes/2 :: (string(), [{visibility_timeout, integer()} | {policy, string()}]) -> ok.
 set_queue_attributes(QueueName, Attributes) ->
     set_queue_attributes(QueueName, Attributes, default_config()).
@@ -374,11 +398,11 @@ sqs_simple_request(Config, QueueName, Action, Params) ->
 
 sqs_xml_request(Config, QueueName, Action, Params) ->
     erlcloud_aws:aws_request_xml(post, Config#aws_config.sqs_host,
-                                 queue_path(QueueName), [{"Action", Action}, {"Version", ?API_VERSION}|Params], Config).
+                                 queue_path(QueueName), [{"Action", Action}, {"Version", ?API_VERSION}|Params], erlcloud_retry:custom_retry(sqs, Config)).
 
 sqs_request(Config, QueueName, Action, Params) ->
     erlcloud_aws:aws_request(post, Config#aws_config.sqs_host,
-                             queue_path(QueueName), [{"Action", Action}, {"Version", ?API_VERSION}|Params], Config).
+                             queue_path(QueueName), [{"Action", Action}, {"Version", ?API_VERSION}|Params], erlcloud_retry:custom_retry(sqs, Config)).
 
 queue_path([$/|_] = QueueName) -> QueueName;
 queue_path(["http"|_] = URL) ->

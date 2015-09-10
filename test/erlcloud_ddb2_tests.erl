@@ -213,6 +213,10 @@ error_handling_tests(_) ->
     OkResult = {ok, [{<<"friends">>, [<<"Lynda">>, <<"Aaron">>]},
                      {<<"status">>, <<"online">>}]},
 
+    ConditionalCheckErrorJson = "
+{\"__type\":\"com.amazonaws.dynamodb.v20111205#ConditionalCheckFailedException\",
+\"message\":\"The expected value did not match what was stored in the system.\"}",
+
     Tests = 
         [?_ddb_test(
             {"Test retry after ProvisionedThroughputExceededException",
@@ -224,11 +228,8 @@ error_handling_tests(_) ->
              OkResult}),
          ?_ddb_test(
             {"Test ConditionalCheckFailed error",
-             [httpc_response(400, "
-{\"__type\":\"com.amazonaws.dynamodb.v20111205#ConditionalCheckFailedException\",
-\"message\":\"The expected value did not match what was stored in the system.\"}"
-                            )],
-             {error, {<<"ConditionalCheckFailedException">>, <<"The expected value did not match what was stored in the system.">>}}}),
+             [httpc_response(400, ConditionalCheckErrorJson)],
+             {error, {http_error, 400, [], list_to_binary(ConditionalCheckErrorJson)}}}),
          ?_ddb_test(
             {"Test retry after 500",
              [httpc_response(500, ""),

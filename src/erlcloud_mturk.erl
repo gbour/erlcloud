@@ -57,9 +57,9 @@
          update_qualification_type/1, update_qualification_type/2
         ]).
 
--include_lib("erlcloud/include/erlcloud.hrl").
--include_lib("erlcloud/include/erlcloud_aws.hrl").
--include_lib("erlcloud/include/erlcloud_mturk.hrl").
+-include("erlcloud.hrl").
+-include("erlcloud_aws.hrl").
+-include("erlcloud_mturk.hrl").
 -include_lib("xmerl/include/xmerl.hrl").
 
 -define(API_VERSION, "2008-08-02").
@@ -1606,20 +1606,8 @@ mturk_request(Config, Operation, Params) ->
                {"AWSAccessKeyId", Config#aws_config.access_key_id},
                {"Signature", Signature}|Params],
 
-    URL = ["https://", Config#aws_config.mturk_host, "/"],
-
-    Response = erlcloud_httpc:request(
-                 lists:flatten(URL),
-                 post,
-                 [{<<"content-type">>, <<"application/x-www-form-urlencoded">>}],
-                 list_to_binary(erlcloud_http:make_query_string(QParams)),
-                 Config#aws_config.timeout, Config),
-
-    case Response of
-        {ok, {{200, _StatusLine}, _Headers, Body}} ->
-            binary_to_list(Body);
-        {ok, {{Status, _StatusLine}, _Headers, _Body}} ->
-            erlang:error({aws_error, {http_error, Status, _StatusLine, _Body}});
-        {error, Error} ->
-            erlang:error({aws_error, {socket_error, Error}})
+    case erlcloud_aws:aws_request2(post, "https://", Config#aws_config.mturk_host, undefined, "/", QParams, erlcloud_retry:custom_retry(mturk, Config)) of
+        {ok, RespBody} -> binary_to_list(RespBody);
+        Error -> Error
     end.
+

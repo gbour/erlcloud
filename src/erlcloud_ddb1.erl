@@ -32,10 +32,10 @@
         ]).
 
 %% Helpers
--export([key_value/1, backoff/1, retry/2]).
+-export([key_value/1]).
 
 -export_type([key/0, key_schema_value/0, key_schema/0, json_return/0,
-              batch_write_item_request/0, attempt/0, retry_fun/0]).
+              batch_write_item_request/0]).
 
 -type table_name() :: binary().
 -type attr_type() :: binary().
@@ -283,25 +283,5 @@ update_table(Table, ReadUnits, WriteUnits, Config) ->
             {<<"ProvisionedThroughput">>, [{<<"ReadCapacityUnits">>, ReadUnits},
                                            {<<"WriteCapacityUnits">>, WriteUnits}]}],
     erlcloud_ddb_impl:request(Config, "DynamoDB_20111205.UpdateTable", Json).
-
-%% backoff and retry are here for backwards compat. Use the ones in erlcloud_ddb_impl instead.
-
--define(NUM_ATTEMPTS, 10).
-
-%% Sleep after an attempt
--spec backoff(pos_integer()) -> ok.
-backoff(1) -> ok;
-backoff(Attempt) -> 
-    timer:sleep(random:uniform((1 bsl (Attempt - 1)) * 100)).
-
--type attempt() :: {attempt, pos_integer()} | {error, term()}.
--type retry_fun() :: fun((pos_integer(), term()) -> attempt()).
--spec retry(pos_integer(), term()) -> attempt().
-retry(Attempt, Reason) when Attempt >= ?NUM_ATTEMPTS ->
-    {error, Reason};
-retry(Attempt, _) ->
-    backoff(Attempt),
-    {attempt, Attempt + 1}.
-    
 
 default_config() -> erlcloud_aws:default_config().

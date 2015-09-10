@@ -59,7 +59,9 @@ put_object_tests(_) ->
 error_handling_no_retry() ->
     Response = {ok, {{500, "Internal Server Error"}, [], <<"TestBody">>}},
     meck:expect(erlcloud_httpc, request, httpc_expect(Response)),
-    Result = erlcloud_s3:get_bucket_policy("BucketName", config()),
+    Result = erlcloud_s3:get_bucket_policy(
+               "BucketName",
+               config(#aws_config{custom_retry_settings = [{s3, fun erlcloud_retry:no_retry/1, undefined}]})),
     ?_assertEqual({error,{http_error,500,"Internal Server Error",<<"TestBody">>}}, Result).
 
 error_handling_default_retry() ->
@@ -68,7 +70,7 @@ error_handling_default_retry() ->
     meck:sequence(erlcloud_httpc, request, 6, [Response1, Response2]),
     Result = erlcloud_s3:get_bucket_policy(
                "BucketName", 
-               config(#aws_config{retry = fun erlcloud_retry:default_retry/1})),
+               config(#aws_config{custom_retry_settings = [{s3, fun erlcloud_retry:default_retry/1, undefined}]})),
     ?_assertEqual({ok, "TestBody"}, Result).
 
 error_handling_httpc_error() ->
@@ -77,7 +79,7 @@ error_handling_httpc_error() ->
     meck:sequence(erlcloud_httpc, request, 6, [Response1, Response2]),
     Result = erlcloud_s3:get_bucket_policy(
                "BucketName", 
-               config(#aws_config{retry = fun erlcloud_retry:default_retry/1})),
+               config(#aws_config{custom_retry_settings = [{s3, fun erlcloud_retry:default_retry/1, undefined}]})),
     ?_assertEqual({ok, "TestBody"}, Result).
 
 error_handling_tests(_) ->

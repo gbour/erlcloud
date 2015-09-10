@@ -43,7 +43,7 @@ run:
 	erl -pa deps/*/ebin -pa ./ebin
 
 eunit: compile
-	@$(REBAR) eunit skip_deps=true
+	@AWS_ACCESS_KEY_ID=id AWS_SECRET_ACCESS_KEY=secret $(REBAR) eunit skip_deps=true
 
 check: compile
 	dialyzer --verbose --no_check_plt --no_native --fullpath \

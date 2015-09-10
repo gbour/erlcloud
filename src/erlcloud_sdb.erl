@@ -366,7 +366,7 @@ sdb_request_with_retry(Config, Action, Params, Try, Timeout, StartTime) ->
 sdb_request_safe(Config, Action, Params) ->
     QParams = [{"Action", Action}, {"Version", ?API_VERSION}|Params],
     case erlcloud_aws:aws_request_xml2(post, Config#aws_config.sdb_host,
-                                       "/", QParams, Config) of
+                                       "/", QParams, erlcloud_retry:custom_retry(sdb, Config)) of
         {ok, Doc} ->
             {ok, Doc, [{box_usage, erlcloud_xml:get_float("/*/ResponseMetadata/BoxUsage", Doc)}]};
         {error, Error} ->

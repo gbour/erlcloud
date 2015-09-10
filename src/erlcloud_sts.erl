@@ -61,5 +61,5 @@ sts_query(AwsConfig, Action, Params, ApiVersion) ->
         AwsConfig#aws_config.sts_host,
         "/",
         [{"Action", Action}, {"Version", ApiVersion} | Params],
-        AwsConfig
+        erlcloud_retry:custom_retry(sts, AwsConfig)
     ).

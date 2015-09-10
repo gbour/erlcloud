@@ -212,4 +212,4 @@ ses_request_no_update(Config, Action, Params) ->
     Query = erlcloud_http:make_query_string(QParams),
 
     erlcloud_aws:aws_request_form(
-      post, "https", Config#aws_config.ses_host, 443, "/", Query, Headers2, Config).
+      post, "https", Config#aws_config.ses_host, 443, "/", Query, Headers2, erlcloud_retry:custom_retry(ses, Config)).

@@ -8,14 +8,18 @@
   {applications, [stdlib,
                   kernel,
                   crypto,
+                  asn1,
                   public_key,
                   ssl,
                   xmerl,
                   inets,
                   jsx,
-                  hackney_pooler]},
-  {included_applications, [idna]},
+                  fusco]},
   {modules, []},
-  {env, [{pool_size, 500}]}
+  {mod, {erlcloud_app, []}},
+  {env, [
+         {pools, [{erlcloud_pool, [{pool_size, 500}]}]},
+         {implicit_pool_size, 100}
+        ]}
  ]
 }.

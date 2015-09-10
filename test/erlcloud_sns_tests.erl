@@ -44,12 +44,12 @@ is_case_insensitive(_) ->
 
 doesnt_support_gopher(_) ->
     Config = (erlcloud_aws:default_config())#aws_config{sns_scheme="gopher://"},
-    ?_assertError({sns_error, {unsupported_scheme,"gopher://"}},
+    ?_assertException(error, {unsupported_scheme,"gopher://"},
                   erlcloud_sns:publish_to_topic("topicarn", "message", "subject", Config)).
 
 doesnt_accept_non_strings(_) ->
     Config = (erlcloud_aws:default_config())#aws_config{sns_scheme=https},
-    ?_assertError({sns_error, badarg},
+    ?_assertException(error, function_clause,
                   erlcloud_sns:publish_to_topic("topicarn", "message", "subject", Config)).
 
 
